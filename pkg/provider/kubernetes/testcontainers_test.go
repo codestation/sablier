@@ -148,6 +148,25 @@ func TestMain(m *testing.M) {
 		os.Exit(m.Run())
 	}
 
+	// External clusters are opt-in: never use a developer's default context.
+	if path := os.Getenv("SABLIER_TEST_KUBECONFIG"); path != "" {
+		cfg, err := clientcmd.BuildConfigFromFlags("", path)
+		if err != nil {
+			log.Fatalf("load external test kubeconfig: %v", err)
+		}
+		cfg.QPS, cfg.Burst = 100, 200
+		client, err := kubernetes.NewForConfig(cfg)
+		if err != nil {
+			log.Fatalf("create external test client: %v", err)
+		}
+		dyn, err := dynamic.NewForConfig(cfg)
+		if err != nil {
+			log.Fatalf("create external dynamic client: %v", err)
+		}
+		sharedKinD = &kindContainer{client: client, dynamic: dyn, restcfg: cfg}
+		os.Exit(m.Run())
+	}
+
 	ctx := context.Background()
 
 	kind, err := k3s.Run(ctx, "rancher/k3s:v1.36.0-k3s1")

@@ -48,6 +48,10 @@ func (p *Provider) InstanceStart(ctx context.Context, name string) (err error) {
 		return err
 	}
 
+	if parsed.Kind == "cronjob" || parsed.Kind == "job" {
+		return p.batchSetActive(ctx, parsed, true)
+	}
+
 	// CloudNativePG Clusters are resumed by clearing the hibernation annotation
 	// rather than scaling a replica count, so they bypass the scale-mode logic.
 	if parsed.Kind == KindCNPGCluster {

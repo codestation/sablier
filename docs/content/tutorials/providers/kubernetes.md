@@ -66,6 +66,12 @@ rules:
       - get     # Retrieve info about specific dep
       - list    # Events
       - watch   # Events
+  - apiGroups: [batch]
+    resources: [cronjobs]
+    verbs: [get, list, watch, patch]
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [get, list, watch, patch, delete]
   # Only required if you manage CloudNativePG Clusters (see below).
   - apiGroups:
       - postgresql.cnpg.io
@@ -232,3 +238,59 @@ This makes it straightforward to group a Redis instance with the rest of an appl
 {{< callout type="info" >}}
 The `redis.redis.opstreelabs.in` RBAC rule (see above) is required for Sablier to patch the skip-reconcile annotation on the Redis CR. If the rule is absent or the CRD is not installed, Sablier logs a warning and scales the StatefulSet anyway. The operator will reconcile replicas back, but no other harm is done.
 {{< /callout >}}
+
+## Register CronJobs and Jobs
+
+Update the ClusterRole above **before deploying this version**: discovery and
+watching now require access to `batch/cronjobs` and `batch/jobs`. No pod exec
+permission is needed.
+
+Set `sablierapp.dev/enable: "true"` on the CronJob or standalone Job metadata.
+Use `sablierapp.dev/group: nightly` as a label, or an annotation for multiple
+groups such as `sablierapp.dev/group: "nightly,maintenance"`. Legacy `sablier.*`
+keys remain supported. For example:
+
+```yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cleanup
+  namespace: default
+  labels:
+    sablierapp.dev/enable: "true"
+  annotations:
+    sablierapp.dev/group: "nightly,maintenance"
+spec:
+  schedule: "*/5 * * * *"
+  suspend: true
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: cleanup
+              image: busybox:1.37
+              command: [sh, -c, "echo cleanup"]
+```
+
+The instance name is `cronjob_default_cleanup_1`. A standalone Job uses
+`job_default_cleanup_1` and the same metadata configuration; the configured
+name delimiter applies to both kinds.
+
+Starting a CronJob clears `spec.suspend`. Sablier preserves its schedule,
+starting deadline and concurrency policy; Kubernetes decides whether missed
+runs should execute. Stopping first suspends scheduling, then deletes all
+unfinished child Jobs identified by owner UID, including unlabeled children.
+If some deletions fail, the CronJob stays suspended and the error names the
+affected Jobs; stopping again retries safely.
+
+Stopping a standalone Job permanently deletes it. Starting only resumes an
+existing suspended Job; deleted Jobs are never recreated. Completed and failed
+Jobs are preserved and excluded from group discovery. Inspection retains their
+terminal status. An unsuspended Job or CronJob is ready without waiting for Job
+completion, so mixed groups can become available while batch work runs.
+
+Job deletion uses foreground propagation and the normal pod grace period.
+Cancellation acceptance is asynchronous: pods may still be terminating. See the
+[Kubernetes pod termination lifecycle](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-termination).

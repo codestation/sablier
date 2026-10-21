@@ -254,6 +254,19 @@ By default, testcontainer tests are included in the regular test suite:
 make test
 ```
 
+#### Kubernetes tests on an existing cluster
+
+To bypass the containerized k3s setup, explicitly supply a kubeconfig:
+
+```bash
+SABLIER_TEST_KUBECONFIG=/path/to/kubeconfig go test -timeout 15m ./pkg/provider/kubernetes
+```
+
+Use a disposable test cluster. These tests create workloads in `default`, create
+isolated namespaces for batch tests, and install minimal CNPG and Redis CRDs.
+The external cluster is not terminated, and those CRDs remain installed after
+the run. The default Kubernetes context is never selected implicitly.
+
 #### Skipping Long Tests
 
 If you want to skip testcontainer tests during development:

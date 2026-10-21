@@ -14,6 +14,7 @@ func (p *Provider) InstanceEvents(ctx context.Context, opts provider.InstanceEve
 	wantCreated := len(opts.Types) == 0 || slices.Contains(opts.Types, provider.InstanceEventCreated)
 	wantRemoved := len(opts.Types) == 0 || slices.Contains(opts.Types, provider.InstanceEventRemoved)
 	eventsC := make(chan sablier.InstanceEvent)
+	p.watchBatch(ctx, eventsC, wantStopped, wantStarted, wantCreated, wantRemoved, len(opts.Types) == 0 || slices.Contains(opts.Types, provider.InstanceEventUpdated))
 	errC := make(chan error, 1)
 	informer := p.watchDeployments(ctx, eventsC, wantStopped, wantStarted, wantCreated, wantRemoved)
 	go informer.Run(ctx.Done())

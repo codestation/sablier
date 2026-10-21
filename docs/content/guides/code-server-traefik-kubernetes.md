@@ -91,6 +91,8 @@ This walkthrough was written against older component versions (k3s 1.23, Traefik
       name: sablier
       namespace: kube-system
     ```
+Apply the updated batch permissions before upgrading an existing deployment.
+
 2. Create Sablier Cluster Role file `sablier-cr.yaml` and then `kubectl apply -f sablier-cr.yaml`
     ```yml
     apiVersion: rbac.authorization.k8s.io/v1
@@ -113,6 +115,12 @@ This walkthrough was written against older component versions (k3s 1.23, Traefik
           - update  # Scale up and down
           - list    # Events
           - watch   # Events
+      - apiGroups: [batch]
+        resources: [cronjobs]
+        verbs: [get, list, watch, patch]
+      - apiGroups: [batch]
+        resources: [jobs]
+        verbs: [get, list, watch, patch, delete]
     ```
 3. Create Sablier Cluster Role Binding `sablier-crb.yaml` and then `kubectl apply -f sablier-crb.yaml`
     ```yml

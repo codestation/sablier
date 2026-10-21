@@ -13,6 +13,8 @@ func (p *Provider) InstanceInspect(ctx context.Context, name string) (sablier.In
 	}
 
 	switch parsed.Kind {
+	case "cronjob", "job":
+		return p.batchInspect(ctx, parsed)
 	case "deployment":
 		return p.DeploymentInspect(ctx, parsed)
 	case "statefulset":
